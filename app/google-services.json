@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "790088097993",
+    "project_id": "fixmyroad-15e96",
+    "storage_bucket": "fixmyroad-15e96.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:790088097993:android:8acd42c5720769b11c6d18",
+        "android_client_info": {
+          "package_name": "com.example.fixmyroad"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyARM0j-9xV3upv9gupJsB5nvZENI8GvxSs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

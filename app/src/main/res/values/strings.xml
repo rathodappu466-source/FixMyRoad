@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">FixMyRoad</string>
+    <string name="dashboard_title">FixMyRoad Dashboard</string>
+    <string name="new_report">New Issue Report</string>
+    <string name="view_history">View Saved Reports</string>
+    <string name="file_a_report">File a Report</string>
+    <string name="camera">Camera</string>
+    <string name="gallery">Gallery</string>
+    <string name="describe_the_issue">Describe the issue</string>
+    <string name="issue_type">Issue Type</string>
+    <string name="location_not_fetched">Location: Not fetched</string>
+    <string name="fetch_gps">Fetch GPS</string>
+    <string name="submit_report">Submit Report</string>
+    <string name="saved_reports">Saved Reports</string>
+</resources>
