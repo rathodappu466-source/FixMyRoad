@@ -61,7 +61,12 @@ The project was built using modern Android development practices with Kotlin, Je
 
 | Dashboard | Report Issue | Map Tracking |
 |----------|--------------|--------------|
-| ![Dashboard](assets/screenshots/dashboard.png) | ![Report Issue](assets/screenshots/report_issue.png) | ![Map Tracking](assets/screenshots/map_tracking.png) |
+<img width="716" height="1600" alt="WhatsApp Image 2026-05-18 at 11 33 35 PM" src="https://github.com/user-attachments/assets/b82388d8-bd27-47be-8ff5-8861ad87f964" />
+<img width="716" height="1600" alt="WhatsApp Image 2026-05-18 at 11 33 35 PM (1)" src="https://github.com/user-attachments/assets/251a2f21-ea2f-416f-892e-75ef7ae29695" />
+
+<img width="716" height="1600" alt="WhatsApp Image 2026-05-18 at 11 33 36 PM" src="https://github.com/user-attachments/assets/6595494e-259e-42ee-a1b9-1f8beb25b157" />
+<img width="716" height="1600" alt="WhatsApp Image 2026-05-18 at 11 33 36 PM (1)" src="https://github.com/user-attachments/assets/9c29eab6-a27a-4162-8d63-99ba561e327c" />
+
 
 > Add your actual screenshots inside `assets/screenshots/` and update the filenames if needed.
 
