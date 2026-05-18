@@ -38,5 +38,9 @@ data class Report(
 
     val userName: String = "",
 
-    val userEmail: String = ""
+    val userEmail: String = "",
+
+    val adminResponse: String? = null,
+
+    val adminUpdatedAt: Long? = null
 )

@@ -563,7 +563,7 @@ fun StatusChipModern(
     val color =
         when (status) {
             "Resolved" -> SuccessGreen
-            "In Progress" -> WarningAmber
+            "Working", "In Progress" -> WarningAmber
             "Pending" -> ErrorRed
             else -> BrandPrimary
         }
@@ -582,7 +582,7 @@ fun StatusChipModern(
         Spacer(modifier = Modifier.width(6.dp))
 
         Text(
-            text = status,
+            text = if (status == "In Progress") "Working" else status,
             style = MaterialTheme.typography.labelMedium,
             color = color,
             fontWeight = FontWeight.Bold

@@ -23,7 +23,9 @@ data class ReportEntity(
     val isSynced: Boolean,
     val userId: String,
     val userName: String,
-    val userEmail: String
+    val userEmail: String,
+    val adminResponse: String?,
+    val adminUpdatedAt: Long?
 ) {
     fun toDomain() = Report(
         ticketId = ticketId,
@@ -43,7 +45,9 @@ data class ReportEntity(
         isSynced = isSynced,
         userId = userId,
         userName = userName,
-        userEmail = userEmail
+        userEmail = userEmail,
+        adminResponse = adminResponse,
+        adminUpdatedAt = adminUpdatedAt
     )
 
     companion object {
@@ -65,7 +69,9 @@ data class ReportEntity(
             isSynced = report.isSynced,
             userId = report.userId,
             userName = report.userName,
-            userEmail = report.userEmail
+            userEmail = report.userEmail,
+            adminResponse = report.adminResponse,
+            adminUpdatedAt = report.adminUpdatedAt
         )
     }
 }

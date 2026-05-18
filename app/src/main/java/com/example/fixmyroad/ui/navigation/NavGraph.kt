@@ -3,6 +3,7 @@ package com.example.fixmyroad.ui.navigation
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -11,7 +12,11 @@ import androidx.navigation.NavType
 import com.example.fixmyroad.ui.screens.*
 
 @Composable
-fun NavGraph(navController: NavHostController) {
+fun NavGraph(
+    navController: NavHostController,
+    isAdminSession: Boolean,
+    onAdminSessionChanged: (Boolean) -> Unit
+) {
     NavHost(
         navController = navController,
         startDestination = Screen.Splash.route,
@@ -34,8 +39,14 @@ fun NavGraph(navController: NavHostController) {
         }
         composable(Screen.Auth.route) {
             AuthScreen(
-                onLoginSuccess = {
-                    navController.navigate(Screen.Dashboard.route) {
+                onLoginSuccess = { isAdmin ->
+                    onAdminSessionChanged(isAdmin)
+                    val destination = if (isAdmin) {
+                        Screen.AdminDashboard.route
+                    } else {
+                        Screen.Dashboard.route
+                    }
+                    navController.navigate(destination) {
                         popUpTo(Screen.Auth.route) { inclusive = true }
                     }
                 }
@@ -47,8 +58,36 @@ fun NavGraph(navController: NavHostController) {
                 onNavigateToHistory = { navController.navigate(Screen.History.route) },
                 onNavigateToMap = { navController.navigate(Screen.Map.route) },
                 onNavigateToProfile = { navController.navigate(Screen.Profile.route) },
-                onNavigateToSupport = { navController.navigate(Screen.Support.route) }
+                onNavigateToSupport = { navController.navigate(Screen.Support.route) },
+                onNavigateToSettings = { navController.navigate(Screen.Settings.route) },
+                onLogout = {
+                    onAdminSessionChanged(false)
+                    navController.navigate(Screen.Auth.route) {
+                        popUpTo(Screen.Dashboard.route) { inclusive = true }
+                    }
+                }
             )
+        }
+        composable(Screen.AdminDashboard.route) {
+            if (isAdminSession) {
+                AdminDashboardScreen(
+                    onLogout = {
+                        onAdminSessionChanged(false)
+                        navController.navigate(Screen.Auth.route) {
+                            popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                        }
+                    },
+                    onNavigateToDetails = { ticketId ->
+                        navController.navigate(Screen.ReportDetails.createRoute(ticketId))
+                    }
+                )
+            } else {
+                LaunchedEffect(Unit) {
+                    navController.navigate(Screen.Dashboard.route) {
+                        popUpTo(Screen.AdminDashboard.route) { inclusive = true }
+                    }
+                }
+            }
         }
         composable(Screen.ReportIssue.route) {
             ReportIssueScreen(

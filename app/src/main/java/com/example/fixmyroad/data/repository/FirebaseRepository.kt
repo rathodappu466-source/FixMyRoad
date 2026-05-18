@@ -93,7 +93,9 @@ class FirebaseRepository @Inject constructor() {
                         "pincode" to report.pincode,
                         "imageUri" to report.imageUri,
                         "latitude" to report.latitude,
-                        "longitude" to report.longitude
+                        "longitude" to report.longitude,
+                        "adminResponse" to report.adminResponse,
+                        "adminUpdatedAt" to report.adminUpdatedAt
                     )
                 )
                 .await()

@@ -33,7 +33,7 @@ import com.example.fixmyroad.ui.theme.*
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AuthScreen(
-    onLoginSuccess: () -> Unit
+    onLoginSuccess: (isAdmin: Boolean) -> Unit
 ) {
 
     var email by remember { mutableStateOf("") }
@@ -56,8 +56,12 @@ fun AuthScreen(
     }
 
     val isFormValid =
-        email.contains("@") &&
-                password.length >= 6
+        email.isNotBlank() &&
+                password.isNotBlank()
+
+    val isAdminCredential =
+        email.trim().equals("admin@gmail.com", ignoreCase = true) &&
+                password == "test123"
 
     Box(
         modifier = Modifier
@@ -259,7 +263,7 @@ fun AuthScreen(
 
                             if (isFormValid) {
                                 isLoading = true
-                                onLoginSuccess()
+                                onLoginSuccess(isAdminCredential)
                             } else {
                                 showError = true
                             }
@@ -329,7 +333,7 @@ fun AuthScreen(
                             showError = false
                             isLoading = true
 
-                            onLoginSuccess()
+                            onLoginSuccess(isAdminCredential)
 
                         } else {
 
@@ -502,7 +506,7 @@ fun AuthScreen(
                     Spacer(modifier = Modifier.width(10.dp))
 
                     Text(
-                        text = "Please enter valid login credentials",
+                        text = "Please enter email and password",
                         color = Color.White,
                         fontWeight = FontWeight.Medium
                     )

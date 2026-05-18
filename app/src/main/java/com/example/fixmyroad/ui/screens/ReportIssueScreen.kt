@@ -1,6 +1,7 @@
 package com.example.fixmyroad.ui.screens
 
 import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -37,6 +38,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -51,6 +53,8 @@ import com.google.android.gms.maps.model.CameraPosition
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MapStyleOptions
 import com.google.maps.android.compose.*
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 @OptIn(
     ExperimentalMaterial3Api::class,
@@ -65,6 +69,8 @@ fun ReportIssueScreen(
 
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     var title by remember {
         mutableStateOf("")
@@ -76,6 +82,10 @@ fun ReportIssueScreen(
 
     var selectedCategory by remember {
         mutableStateOf("Pothole")
+    }
+
+    var categoryExpanded by remember {
+        mutableStateOf(false)
     }
 
     var selectedSeverity by remember {
@@ -94,18 +104,15 @@ fun ReportIssueScreen(
         mutableStateOf(false)
     }
 
-    var errorMessage by remember {
-        mutableStateOf("")
-    }
-
     val isSubmitting by viewModel.isSubmitting.collectAsStateWithLifecycle()
+    val formValidation by viewModel.formValidation.collectAsStateWithLifecycle()
 
     val categories = listOf(
         "Pothole",
-        "Street Light",
-        "Drainage",
-        "Debris",
-        "Garbage",
+        "Damaged Road",
+        "Broken Streetlight",
+        "Drainage Issue",
+        "Garbage Issue",
         "Other"
     )
 
@@ -116,23 +123,58 @@ fun ReportIssueScreen(
         "Critical"
     )
 
-    val cameraPermissionState =
-        rememberPermissionState(
-            Manifest.permission.CAMERA
-        )
-
     val locationPermissionState =
         rememberPermissionState(
             Manifest.permission.ACCESS_FINE_LOCATION
         )
+
+    var cameraImageUri by remember {
+        mutableStateOf<Uri?>(null)
+    }
 
     val cameraLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.TakePicture()
         ) { success ->
 
-            if (!success) {
-                imageUri = null
+            if (success && cameraImageUri != null) {
+                imageUri = cameraImageUri
+            }
+
+            cameraImageUri = null
+        }
+
+    fun openCamera() {
+        try {
+            val uri = CameraUtils.createImageUri(context)
+
+            cameraImageUri = uri
+            cameraLauncher.launch(uri)
+
+        } catch (_: Exception) {
+            cameraImageUri = null
+
+            Toast.makeText(
+                context,
+                "Unable to open camera",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    val cameraPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+
+            if (isGranted) {
+                openCamera()
+            } else {
+                Toast.makeText(
+                    context,
+                    "Camera permission is required to capture an issue photo",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
@@ -144,7 +186,67 @@ fun ReportIssueScreen(
             imageUri = uri
         }
 
+    fun submitComplaint() {
+        focusManager.clearFocus()
+
+        when {
+
+            title.isBlank() -> {
+                showValidationError = true
+
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Please enter issue title")
+                }
+            }
+
+            description.isBlank() -> {
+                showValidationError = true
+
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Please enter issue description")
+                }
+            }
+
+            imageUri == null -> {
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Please upload or capture an issue image")
+                }
+            }
+
+            else -> {
+                showValidationError = false
+
+                viewModel.submitReport(
+                    title = title,
+                    description = description,
+                    category = selectedCategory,
+                    severity = selectedSeverity,
+                    imageUri = imageUri,
+                    onSuccess = { ticketId ->
+
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(
+                                "Complaint submitted. Ticket ID: $ticketId"
+                            )
+                            delay(700)
+                            onSubmitSuccess()
+                        }
+                    },
+                    onError = {
+
+                        coroutineScope.launch {
+                            snackbarHostState.showSnackbar(it)
+                        }
+                    }
+                )
+            }
+        }
+    }
+
     Scaffold(
+        snackbarHost = {
+            SnackbarHost(hostState = snackbarHostState)
+        },
         topBar = {
 
             CenterAlignedTopAppBar(
@@ -171,6 +273,60 @@ fun ReportIssueScreen(
                     containerColor = MaterialTheme.colorScheme.background
                 )
             )
+        },
+        bottomBar = {
+
+            Surface(
+                tonalElevation = 8.dp,
+                shadowElevation = 12.dp,
+                color = MaterialTheme.colorScheme.background
+            ) {
+
+                Button(
+                    onClick = {
+                        submitComplaint()
+                    },
+                    modifier = Modifier
+                        .navigationBarsPadding()
+                        .imePadding()
+                        .padding(
+                            horizontal = 22.dp,
+                            vertical = 14.dp
+                        )
+                        .fillMaxWidth()
+                        .height(58.dp),
+                    enabled = !isSubmitting,
+                    shape = RoundedCornerShape(20.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = BrandPrimary
+                    )
+                ) {
+
+                    if (isSubmitting) {
+
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(24.dp),
+                            color = Color.White,
+                            strokeWidth = 2.dp
+                        )
+
+                    } else {
+
+                        Icon(
+                            Icons.Rounded.Send,
+                            contentDescription = null
+                        )
+
+                        Spacer(modifier = Modifier.width(10.dp))
+
+                        Text(
+                            text = "Submit Complaint",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
@@ -292,29 +448,15 @@ fun ReportIssueScreen(
                             subtitle = "Capture Issue",
                             onClick = {
 
-                                if (cameraPermissionState.status.isGranted) {
-
-                                    try {
-
-                                        val uri =
-                                            CameraUtils.createImageUri(context)
-
-                                        imageUri = uri
-
-                                        cameraLauncher.launch(uri)
-
-                                    } catch (_: Exception) {
-
-                                        Toast.makeText(
-                                            context,
-                                            "Unable to open camera",
-                                            Toast.LENGTH_SHORT
-                                        ).show()
-                                    }
-
+                                if (
+                                    ContextCompat.checkSelfPermission(
+                                        context,
+                                        Manifest.permission.CAMERA
+                                    ) == PackageManager.PERMISSION_GRANTED
+                                ) {
+                                    openCamera()
                                 } else {
-
-                                    cameraPermissionState.launchPermissionRequest()
+                                    cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                                 }
                             }
                         )
@@ -404,6 +546,18 @@ fun ReportIssueScreen(
                 }
             )
 
+            if (formValidation.locationError != null || formValidation.addressError != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = formValidation.locationError
+                        ?: formValidation.addressError
+                        ?: "",
+                    color = ErrorRed,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
             Spacer(modifier = Modifier.height(30.dp))
 
             // DETAILS SECTION
@@ -428,13 +582,17 @@ fun ReportIssueScreen(
                 },
                 shape = RoundedCornerShape(18.dp),
                 singleLine = true,
-                isError = showValidationError && title.isBlank(),
+                isError = formValidation.titleError != null ||
+                        (showValidationError && title.isBlank()),
                 supportingText = {
 
-                    if (showValidationError && title.isBlank()) {
+                    val titleError = formValidation.titleError
+                        ?: if (showValidationError && title.isBlank()) "Title is required" else null
+
+                    if (titleError != null) {
 
                         Text(
-                            text = "Title is required"
+                            text = titleError
                         )
                     }
                 }
@@ -442,29 +600,56 @@ fun ReportIssueScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            Text(
-                text = "Category",
-                style = MaterialTheme.typography.titleSmall,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            LazyRow(
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ExposedDropdownMenuBox(
+                expanded = categoryExpanded,
+                onExpandedChange = {
+                    categoryExpanded = !categoryExpanded
+                }
             ) {
 
-                items(categories) { category ->
-
-                    FilterChip(
-                        selected = selectedCategory == category,
-                        onClick = {
-                            selectedCategory = category
-                        },
-                        label = {
-                            Text(category)
+                OutlinedTextField(
+                    value = selectedCategory,
+                    onValueChange = {},
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth(),
+                    readOnly = true,
+                    label = {
+                        Text("Issue Category")
+                    },
+                    trailingIcon = {
+                        ExposedDropdownMenuDefaults.TrailingIcon(
+                            expanded = categoryExpanded
+                        )
+                    },
+                    shape = RoundedCornerShape(18.dp),
+                    isError = formValidation.categoryError != null,
+                    supportingText = {
+                        formValidation.categoryError?.let {
+                            Text(it)
                         }
-                    )
+                    }
+                )
+
+                ExposedDropdownMenu(
+                    expanded = categoryExpanded,
+                    onDismissRequest = {
+                        categoryExpanded = false
+                    }
+                ) {
+
+                    categories.forEach { category ->
+
+                        DropdownMenuItem(
+                            text = {
+                                Text(category)
+                            },
+                            onClick = {
+                                selectedCategory = category
+                                categoryExpanded = false
+                            }
+                        )
+                    }
                 }
             }
 
@@ -520,149 +705,33 @@ fun ReportIssueScreen(
                 },
                 minLines = 5,
                 shape = RoundedCornerShape(18.dp),
-                isError = showValidationError && description.isBlank(),
+                isError = formValidation.descriptionError != null ||
+                        (showValidationError && description.isBlank()),
                 supportingText = {
 
-                    if (showValidationError && description.isBlank()) {
+                    val descriptionError = formValidation.descriptionError
+                        ?: if (showValidationError && description.isBlank()) "Description is required" else null
+
+                    if (descriptionError != null) {
 
                         Text(
-                            text = "Description is required"
+                            text = descriptionError
                         )
                     }
                 }
             )
 
-            Spacer(modifier = Modifier.height(40.dp))
+            if (formValidation.imageError != null) {
+                Spacer(modifier = Modifier.height(8.dp))
 
-            // SUBMIT BUTTON
-            Button(
-                onClick = {
-
-                    focusManager.clearFocus()
-
-                    when {
-
-                        title.isBlank() -> {
-
-                            showValidationError = true
-
-                            errorMessage = "Please enter issue title"
-                        }
-
-                        description.isBlank() -> {
-
-                            showValidationError = true
-
-                            errorMessage = "Please enter issue description"
-                        }
-
-                        imageUri == null -> {
-
-                            errorMessage = "Please upload issue image"
-                        }
-
-                        else -> {
-
-                            showValidationError = false
-
-                            viewModel.submitReport(
-                                title = title,
-                                description = description,
-                                category = selectedCategory,
-                                severity = selectedSeverity,
-                                imageUri = imageUri,
-                                onSuccess = {
-
-                                    Toast.makeText(
-                                        context,
-                                        "Report submitted successfully",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-
-                                    onSubmitSuccess()
-                                },
-                                onError = {
-
-                                    errorMessage = it
-                                }
-                            )
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(60.dp),
-                enabled = !isSubmitting,
-                shape = RoundedCornerShape(22.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = BrandPrimary
+                Text(
+                    text = formValidation.imageError ?: "",
+                    color = ErrorRed,
+                    style = MaterialTheme.typography.bodySmall
                 )
-            ) {
-
-                if (isSubmitting) {
-
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp),
-                        color = Color.White,
-                        strokeWidth = 2.dp
-                    )
-
-                } else {
-
-                    Icon(
-                        Icons.Rounded.Send,
-                        contentDescription = null
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Text(
-                        text = "Submit Complaint",
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
             }
 
-            Spacer(modifier = Modifier.height(40.dp))
-        }
-
-        // ERROR SNACKBAR
-        AnimatedVisibility(
-            visible = errorMessage.isNotEmpty(),
-            modifier = Modifier
-                .padding(16.dp)
-        ) {
-
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = ErrorRed
-                ),
-                shape = RoundedCornerShape(18.dp)
-            ) {
-
-                Row(
-                    modifier = Modifier.padding(
-                        horizontal = 18.dp,
-                        vertical = 14.dp
-                    ),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-
-                    Icon(
-                        Icons.Rounded.Error,
-                        contentDescription = null,
-                        tint = Color.White
-                    )
-
-                    Spacer(modifier = Modifier.width(10.dp))
-
-                    Text(
-                        text = errorMessage,
-                        color = Color.White
-                    )
-                }
-            }
+            Spacer(modifier = Modifier.height(120.dp))
         }
     }
 }
@@ -728,6 +797,13 @@ fun LocationPickerCard(
 
     val selectedLocation by viewModel.selectedLocation.collectAsStateWithLifecycle()
     val detailedAddress by viewModel.detailedAddress.collectAsStateWithLifecycle()
+    val isFetchingAddress by viewModel.isFetchingAddress.collectAsStateWithLifecycle()
+
+    LaunchedEffect(permissionGranted) {
+        if (permissionGranted) {
+            viewModel.detectCurrentLocation()
+        }
+    }
 
     Card(
         modifier = Modifier
@@ -746,6 +822,14 @@ fun LocationPickerCard(
                         15f
                     )
                 }
+
+            LaunchedEffect(selectedLocation) {
+                selectedLocation?.let {
+                    cameraPositionState.animate(
+                        CameraUpdateFactory.newLatLngZoom(it, 16f)
+                    )
+                }
+            }
 
             LaunchedEffect(cameraPositionState.isMoving) {
 
@@ -798,19 +882,41 @@ fun LocationPickerCard(
                     ) {
 
                         Text(
-                            text = detailedAddress?.fullAddress
-                                ?: "Fetching address...",
+                            text = when {
+                                isFetchingAddress -> "Fetching address..."
+                                detailedAddress?.fullAddress.isNullOrEmpty() -> "Address unavailable"
+                                else -> detailedAddress?.fullAddress.orEmpty()
+                            },
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Bold
                         )
 
                         Spacer(modifier = Modifier.height(4.dp))
 
-                        Text(
-                            text = "${detailedAddress?.area ?: ""}, ${detailedAddress?.city ?: ""}",
-                            color = Gray600,
-                            style = MaterialTheme.typography.bodySmall
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+
+                            if (isFetchingAddress) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(14.dp),
+                                    strokeWidth = 2.dp
+                                )
+
+                                Spacer(modifier = Modifier.width(8.dp))
+                            }
+
+                            Text(
+                                text = selectedLocation?.let {
+                                    "%.5f, %.5f".format(
+                                        it.latitude,
+                                        it.longitude
+                                    )
+                                } ?: "Detecting GPS location...",
+                                color = Gray600,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                     }
                 }
             }

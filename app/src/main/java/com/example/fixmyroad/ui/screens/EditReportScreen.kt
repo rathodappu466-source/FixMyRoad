@@ -1,6 +1,9 @@
 package com.example.fixmyroad.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -21,6 +24,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil.compose.AsyncImage
@@ -66,6 +70,40 @@ fun EditReportScreen(
 
             if (success && cameraImageUri != null) {
                 viewModel.updateImageUri(cameraImageUri!!)
+            }
+        }
+
+    fun openCamera() {
+        try {
+            val uri = CameraUtils.createImageUri(context)
+
+            cameraImageUri = uri
+            cameraLauncher.launch(uri)
+
+        } catch (_: Exception) {
+            cameraImageUri = null
+
+            Toast.makeText(
+                context,
+                "Unable to open camera",
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    val cameraPermissionLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { isGranted ->
+
+            if (isGranted) {
+                openCamera()
+            } else {
+                Toast.makeText(
+                    context,
+                    "Camera permission is required to capture an issue photo",
+                    Toast.LENGTH_SHORT
+                ).show()
             }
         }
 
@@ -192,13 +230,15 @@ fun EditReportScreen(
 
                 onCameraClick = {
 
-                    val uri =
-                        CameraUtils.createImageUri(context)
-
-                    if (uri != null) {
-
-                        cameraImageUri = uri
-                        cameraLauncher.launch(uri)
+                    if (
+                        ContextCompat.checkSelfPermission(
+                            context,
+                            Manifest.permission.CAMERA
+                        ) == PackageManager.PERMISSION_GRANTED
+                    ) {
+                        openCamera()
+                    } else {
+                        cameraPermissionLauncher.launch(Manifest.permission.CAMERA)
                     }
                 },
 

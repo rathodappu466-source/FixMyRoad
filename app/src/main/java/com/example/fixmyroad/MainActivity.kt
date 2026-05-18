@@ -36,25 +36,33 @@ class MainActivity : ComponentActivity() {
         setContent {
             FixMyRoadTheme {
                 val navController = rememberNavController()
-                
-                val navigationItems = remember {
-                    listOf(
-                        NavigationItem("Dashboard", Screen.Dashboard.route, Icons.Rounded.GridView),
-                        NavigationItem("Map", Screen.Map.route, Icons.Rounded.Map),
-                        NavigationItem("Activity", Screen.History.route, Icons.Rounded.History),
-                        NavigationItem("Profile", Screen.Profile.route, Icons.Rounded.Person)
-                    )
+                var isAdminSession by remember {
+                    mutableStateOf(false)
                 }
+                
+                val navigationItems = remember(isAdminSession) {
+                    buildList {
+                        if (isAdminSession) {
+                            add(NavigationItem("Admin", Screen.AdminDashboard.route, Icons.Rounded.AdminPanelSettings))
+                        } else {
+                            add(NavigationItem("Dashboard", Screen.Dashboard.route, Icons.Rounded.GridView))
+                        }
+                        add(NavigationItem("Map", Screen.Map.route, Icons.Rounded.Map))
+                        add(NavigationItem("History", Screen.History.route, Icons.Rounded.History))
+                        add(NavigationItem("Profile", Screen.Profile.route, Icons.Rounded.Person))
+                    }
+                }
+
+                val topLevelRoutes = remember(navigationItems) {
+                    navigationItems.map { it.route }.toSet()
+                }
+
+                val navBackStackEntry by navController.currentBackStackEntryAsState()
+                val currentDestination = navBackStackEntry?.destination
+                val showBottomBar = currentDestination?.route in topLevelRoutes
 
                 Scaffold(
                     bottomBar = {
-                        val navBackStackEntry by navController.currentBackStackEntryAsState()
-                        val currentDestination = navBackStackEntry?.destination
-                        
-                        val showBottomBar = remember(currentDestination) {
-                            currentDestination?.route !in listOf(Screen.Splash.route, Screen.Auth.route)
-                        }
-
                         AnimatedVisibility(
                             visible = showBottomBar,
                             enter = slideInVertically { it } + fadeIn(),
@@ -111,15 +119,18 @@ class MainActivity : ComponentActivity() {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
+                            .padding(bottom = innerPadding.calculateBottomPadding())
                             .background(MaterialTheme.colorScheme.background)
                     ) {
                         Surface(
-                            modifier = Modifier.padding(
-                                bottom = if (innerPadding.calculateBottomPadding() > 0.dp) 0.dp else 0.dp
-                            ),
+                            modifier = Modifier.fillMaxSize(),
                             color = Color.Transparent
                         ) {
-                            NavGraph(navController = navController)
+                            NavGraph(
+                                navController = navController,
+                                isAdminSession = isAdminSession,
+                                onAdminSessionChanged = { isAdminSession = it }
+                            )
                         }
                     }
                 }

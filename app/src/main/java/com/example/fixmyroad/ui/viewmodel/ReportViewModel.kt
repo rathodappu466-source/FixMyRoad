@@ -57,6 +57,9 @@ class ReportViewModel @Inject constructor(
     private val _isRetrying = MutableStateFlow(false)
     val isRetrying: StateFlow<Boolean> = _isRetrying.asStateFlow()
 
+    private val _updatingTicketId = MutableStateFlow<String?>(null)
+    val updatingTicketId: StateFlow<String?> = _updatingTicketId.asStateFlow()
+
     private val _lastFailedSubmission = MutableStateFlow<LastFailedSubmission?>(null)
     val lastFailedSubmission: StateFlow<LastFailedSubmission?> = _lastFailedSubmission.asStateFlow()
 
@@ -78,12 +81,31 @@ class ReportViewModel @Inject constructor(
 
     private fun fetchInitialLocation() {
         viewModelScope.launch {
-            val location = locationHelper.getCurrentLocation()
+            val location = try {
+                locationHelper.getCurrentLocation()
+            } catch (_: SecurityException) {
+                null
+            }
+
             location?.let {
                 val latLng = LatLng(it.latitude, it.longitude)
                 updateSelectedLocation(latLng)
             } ?: run {
                 updateSelectedLocation(LatLng(12.9716, 77.5946))
+            }
+        }
+    }
+
+    fun detectCurrentLocation() {
+        viewModelScope.launch {
+            val location = try {
+                locationHelper.getCurrentLocation()
+            } catch (_: SecurityException) {
+                null
+            }
+
+            location?.let {
+                updateSelectedLocation(LatLng(it.latitude, it.longitude))
             }
         }
     }
@@ -200,7 +222,7 @@ class ReportViewModel @Inject constructor(
         category: String,
         severity: String,
         imageUri: Uri?,
-        onSuccess: () -> Unit,
+        onSuccess: (String) -> Unit,
         onError: (String) -> Unit
     ) {
         val location = _selectedLocation.value
@@ -241,8 +263,10 @@ class ReportViewModel @Inject constructor(
                     null
                 }
 
+                val ticketId = "TKT-${timestamp % 100000}-${(10..99).random()}"
+
                 val report = Report(
-                    ticketId = "TKT-${timestamp % 100000}-${(10..99).random()}",
+                    ticketId = ticketId,
                     title = title,
                     description = description,
                     category = category,
@@ -272,7 +296,7 @@ class ReportViewModel @Inject constructor(
 
                 _submissionError.value = null
                 _lastFailedSubmission.value = null
-                onSuccess()
+                onSuccess(ticketId)
             } catch (e: Exception) {
                 val errorMsg = handleSubmissionError(e)
                 _submissionError.value = errorMsg
@@ -342,6 +366,35 @@ class ReportViewModel @Inject constructor(
 
     fun clearSubmissionError() {
         _submissionError.value = null
+    }
+
+    fun updateReportStatus(
+        report: Report,
+        status: String,
+        response: String? = null,
+        onSuccess: () -> Unit,
+        onError: (String) -> Unit
+    ) {
+        viewModelScope.launch {
+            _updatingTicketId.value = report.ticketId
+
+            try {
+                val updatedReport = report.copy(
+                    status = status,
+                    adminResponse = response?.takeIf { it.isNotBlank() }
+                        ?: report.adminResponse,
+                    adminUpdatedAt = System.currentTimeMillis(),
+                    isSynced = false
+                )
+
+                repository.updateReport(updatedReport)
+                onSuccess()
+            } catch (e: Exception) {
+                onError(handleSubmissionError(e))
+            } finally {
+                _updatingTicketId.value = null
+            }
+        }
     }
 }
 

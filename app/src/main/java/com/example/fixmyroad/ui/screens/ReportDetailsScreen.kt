@@ -295,8 +295,17 @@ fun ReportDetailsContent(
 
             DetailCard(
                 title = "Status",
-                value = report.status
+                value = if (report.status == "In Progress") "Working" else report.status
             )
+        }
+
+        if (!report.adminResponse.isNullOrBlank()) {
+            item {
+
+                AdminFollowUpBubble(
+                    message = report.adminResponse
+                )
+            }
         }
 
         item {
@@ -388,6 +397,52 @@ fun ReportDetailsContent(
 
                     Text("Delete")
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun AdminFollowUpBubble(
+    message: String
+) {
+
+    Box(
+        modifier = Modifier.fillMaxWidth(),
+        contentAlignment = Alignment.CenterEnd
+    ) {
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(0.82f),
+            shape = RoundedCornerShape(
+                topStart = 20.dp,
+                topEnd = 20.dp,
+                bottomStart = 20.dp,
+                bottomEnd = 4.dp
+            ),
+            color = BrandPrimary
+        ) {
+
+            Column(
+                modifier = Modifier.padding(18.dp),
+                horizontalAlignment = Alignment.End
+            ) {
+
+                Text(
+                    text = "Administrator Response",
+                    color = Color.White.copy(alpha = 0.78f),
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Bold
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                Text(
+                    text = message,
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
             }
         }
     }

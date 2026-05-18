@@ -7,6 +7,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,6 +42,8 @@ fun DashboardScreen(
     onNavigateToMap: () -> Unit,
     onNavigateToProfile: () -> Unit,
     onNavigateToSupport: () -> Unit,
+    onNavigateToSettings: () -> Unit,
+    onLogout: () -> Unit,
     onNavigateToDetails: (String) -> Unit = {},
     viewModel: ReportViewModel = hiltViewModel()
 ) {
@@ -53,7 +56,9 @@ fun DashboardScreen(
 
     val pendingCount = reports.count { it.status == "Pending" }
     val resolvedCount = reports.count { it.status == "Resolved" }
-    val progressCount = reports.count { it.status == "In Progress" }
+    val progressCount = reports.count {
+        it.status == "Working" || it.status == "In Progress"
+    }
 
     Scaffold(
 
@@ -93,7 +98,12 @@ fun DashboardScreen(
             item {
 
                 DashboardHeader(
-                    userName = userName
+                    userName = userName,
+                    onOpenSettings = onNavigateToSettings,
+                    onLogout = {
+                        FirebaseAuth.getInstance().signOut()
+                        onLogout()
+                    }
                 )
             }
 
@@ -132,6 +142,7 @@ fun DashboardScreen(
             item {
 
                 QuickActionsRow(
+                    onNavigateToReportIssue = onNavigateToReportIssue,
                     onNavigateToMap = onNavigateToMap,
                     onNavigateToHistory = onNavigateToHistory,
                     onNavigateToSupport = onNavigateToSupport,
@@ -200,7 +211,9 @@ fun DashboardScreen(
 
 @Composable
 fun DashboardHeader(
-    userName: String
+    userName: String,
+    onOpenSettings: () -> Unit,
+    onLogout: () -> Unit
 ) {
 
     Box(
@@ -259,21 +272,48 @@ fun DashboardHeader(
                     )
                 }
 
-                Surface(
-                    modifier = Modifier.size(54.dp),
-                    shape = CircleShape,
-                    color = Color.White.copy(alpha = 0.18f)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-
-                    Box(
-                        contentAlignment = Alignment.Center
+                    Surface(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clickable { onOpenSettings() },
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.18f)
                     ) {
 
-                        Icon(
-                            Icons.Rounded.Person,
-                            contentDescription = null,
-                            tint = Color.White
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center
+                        ) {
+
+                            Icon(
+                                Icons.Rounded.Person,
+                                contentDescription = "Open settings",
+                                tint = Color.White
+                            )
+                        }
+                    }
+
+                    Surface(
+                        modifier = Modifier
+                            .size(54.dp)
+                            .clickable { onLogout() },
+                        shape = CircleShape,
+                        color = Color.White.copy(alpha = 0.18f)
+                    ) {
+
+                        Box(
+                            contentAlignment = Alignment.Center
+                        ) {
+
+                            Icon(
+                                Icons.Rounded.Logout,
+                                contentDescription = "Logout",
+                                tint = Color.White
+                            )
+                        }
                     }
                 }
             }
@@ -371,7 +411,7 @@ fun StatsSection(
         )
 
         StatCard(
-            title = "Progress",
+            title = "Working",
             value = progress.toString(),
             icon = Icons.Rounded.Engineering,
             gradient = listOf(
@@ -450,42 +490,59 @@ fun StatCard(
 }
 @Composable
 fun QuickActionsRow(
+    onNavigateToReportIssue: () -> Unit,
     onNavigateToMap: () -> Unit,
     onNavigateToHistory: () -> Unit,
     onNavigateToSupport: () -> Unit,
     onNavigateToProfile: () -> Unit
 ) {
 
-    Row(
+    LazyRow(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 22.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
     ) {
 
-        DashboardActionButton(
-            icon = Icons.Rounded.Map,
-            label = "Map",
-            onClick = onNavigateToMap
-        )
+        item {
+            DashboardActionButton(
+                icon = Icons.Rounded.Assignment,
+                label = "Reports",
+                onClick = onNavigateToReportIssue
+            )
+        }
 
-        DashboardActionButton(
-            icon = Icons.Rounded.History,
-            label = "Reports",
-            onClick = onNavigateToHistory
-        )
+        item {
+            DashboardActionButton(
+                icon = Icons.Rounded.Map,
+                label = "Map",
+                onClick = onNavigateToMap
+            )
+        }
 
-        DashboardActionButton(
-            icon = Icons.Rounded.SupportAgent,
-            label = "Support",
-            onClick = onNavigateToSupport
-        )
+        item {
+            DashboardActionButton(
+                icon = Icons.Rounded.History,
+                label = "Active History",
+                onClick = onNavigateToHistory
+            )
+        }
 
-        DashboardActionButton(
-            icon = Icons.Rounded.Person,
-            label = "Profile",
-            onClick = onNavigateToProfile
-        )
+        item {
+            DashboardActionButton(
+                icon = Icons.Rounded.SupportAgent,
+                label = "Support",
+                onClick = onNavigateToSupport
+            )
+        }
+
+        item {
+            DashboardActionButton(
+                icon = Icons.Rounded.Person,
+                label = "Profile",
+                onClick = onNavigateToProfile
+            )
+        }
     }
 }
 @Composable
@@ -587,20 +644,20 @@ fun DashboardReportCard(
                 shape = RoundedCornerShape(50),
                 color = when (report.status) {
                     "Resolved" -> SuccessGreen.copy(alpha = 0.15f)
-                    "In Progress" -> BrandPrimary.copy(alpha = 0.15f)
+                    "Working", "In Progress" -> BrandPrimary.copy(alpha = 0.15f)
                     else -> WarningAmber.copy(alpha = 0.15f)
                 }
             ) {
 
                 Text(
-                    text = report.status,
+                    text = if (report.status == "In Progress") "Working" else report.status,
                     modifier = Modifier.padding(
                         horizontal = 14.dp,
                         vertical = 6.dp
                     ),
                     color = when (report.status) {
                         "Resolved" -> SuccessGreen
-                        "In Progress" -> BrandPrimary
+                        "Working", "In Progress" -> BrandPrimary
                         else -> WarningAmber
                     },
                     fontWeight = FontWeight.Bold
@@ -647,7 +704,9 @@ fun DashboardActionButton(
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier.clickable { onClick() }
+        modifier = Modifier
+            .width(82.dp)
+            .clickable { onClick() }
     ) {
 
         Surface(
